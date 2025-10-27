@@ -1,5 +1,5 @@
 {
   "version": 2,
-  "buildCommand": "next build",
+  "buildCommand": "./build.sh",
   "framework": "nextjs"
 }

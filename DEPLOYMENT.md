@@ -103,16 +103,59 @@ Once deployed, you can share the Vercel URL with others. They will be able to ac
 
 ### Fixing "npm install" Errors
 
-If you encounter the error "Command 'npm install' exited with 1" during deployment, it's likely due to incompatible package versions. Here are the steps to fix it:
+If you encounter the error "Command 'npm install' exited with 1" during deployment, it's likely due to incompatible package versions or peer dependency issues. Here are the steps to fix it:
 
-1. Check your package.json for incorrect or non-existent package versions:
-   - Make sure `dotenv` is using version `^16.3.1` (not `^17.2.3`)
-   - Update `@hookform/resolvers` to version `^3.3.2`
-   - Update `react-hook-form` to version `^7.48.2`
-   - Update `zod` to version `^3.22.4`
-   - Update TypeScript types to compatible versions
+1. Use exact versions in package.json instead of caret (^) versions:
+   ```json
+   "dependencies": {
+     "@hookform/resolvers": "3.3.1",
+     "react-hook-form": "7.48.2",
+     "zod": "3.22.4",
+     // other dependencies with exact versions
+   }
+   ```
 
-2. After updating package.json, commit and push your changes, then redeploy.
+2. Add a `.npmrc` file to the root of your project with the following content:
+   ```
+   legacy-peer-deps=true
+   strict-peer-dependencies=false
+   auto-install-peers=true
+   ```
+   This will help resolve peer dependency conflicts during installation.
+
+3. Add a custom build script to ensure the correct npm install flags are used:
+   ```bash
+   # build.sh
+   #!/bin/bash
+
+   # Exit on error
+   set -e
+
+   # Print commands
+   set -x
+
+   # Install dependencies with legacy peer deps
+   npm install --legacy-peer-deps
+
+   # Build the application
+   npm run build
+   ```
+
+4. Make the script executable:
+   ```bash
+   chmod +x build.sh
+   ```
+
+5. Update your vercel.json to use the custom build script:
+   ```json
+   {
+     "version": 2,
+     "buildCommand": "./build.sh",
+     "framework": "nextjs"
+   }
+   ```
+
+6. After making these changes, commit and push your changes, then redeploy.
 
 ### Other Common Issues
 
