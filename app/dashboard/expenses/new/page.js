@@ -20,7 +20,7 @@ export default function NewExpensePage() {
       <div>
         <h1 className="text-2xl font-bold">Add New Expense</h1>
         <p className="text-muted-foreground">
-          Record a new expense for a booking
+          Record a new expense for your business
         </p>
       </div>
 

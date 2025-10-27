@@ -5,7 +5,8 @@ const ExpenseSchema = new mongoose.Schema(
     bookingId: { 
       type: mongoose.Schema.Types.ObjectId, 
       ref: 'Booking',
-      required: [true, 'Please provide booking ID'] 
+      // Made optional to allow generic expenses
+      required: false
     },
     description: { 
       type: String, 

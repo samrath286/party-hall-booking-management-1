@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -51,8 +52,6 @@ const formStyles = {
 
 // Form validation schema
 const expenseFormSchema = z.object({
-  // Made bookingId optional
-  bookingId: z.string().optional(),
   description: z.string().min(3, "Description must be at least 3 characters"),
   amount: z.coerce.number().positive("Amount must be greater than 0"),
   category: z.enum(["decor", "catering", "labor", "misc"], {
@@ -67,36 +66,39 @@ const expenseFormSchema = z.object({
 export default function ExpenseForm({ expenseId }) {
   const router = useRouter();
   const { toast } = useToast();
+  const { data: session } = useSession();
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(!!expenseId);
-  const [bookings, setBookings] = useState([]);
   const isEditing = !!expenseId;
+  
+  // Get the current user's name
+  const currentUser = session?.user?.name || "Unknown User";
 
   // Initialize form
   const form = useForm({
     resolver: zodResolver(expenseFormSchema),
     defaultValues: {
-      bookingId: "",
       description: "",
       amount: 0,
       category: "misc",
       date: new Date(),
-      addedBy: "",
+      addedBy: currentUser,
     },
     // Add mode to show validation errors on all fields when form is submitted
     mode: "onSubmit",
   });
 
-  // Fetch bookings and expense data if editing
+  // Update the addedBy field when session changes
+  useEffect(() => {
+    if (session?.user?.name && !isEditing) {
+      form.setValue("addedBy", session.user.name);
+    }
+  }, [session, form, isEditing]);
+
+  // Fetch expense data if editing
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Fetch bookings
-        const bookingsResponse = await fetch("/api/bookings");
-        if (!bookingsResponse.ok) throw new Error("Failed to fetch bookings");
-        const bookingsData = await bookingsResponse.json();
-        setBookings(bookingsData);
-        
         // If editing, fetch expense data
         if (expenseId) {
           const expenseResponse = await fetch(`/api/expenses/${expenseId}`);
@@ -105,12 +107,11 @@ export default function ExpenseForm({ expenseId }) {
           
           // Set form values
           form.reset({
-            bookingId: expense.bookingId,
             description: expense.description,
             amount: expense.amount,
             category: expense.category,
             date: new Date(expense.date),
-            addedBy: expense.addedBy,
+            addedBy: expense.addedBy, // Keep the original addedBy when editing
           });
         }
       } catch (error) {
@@ -185,65 +186,37 @@ export default function ExpenseForm({ expenseId }) {
         <CardDescription>
           {isEditing
             ? "Update expense details"
-            : "Record a new expense for a booking"}
+            : "Record a new expense for your business"}
         </CardDescription>
       </CardHeader>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)}>
           <CardContent className="space-y-4">
-            <FormField
-              control={form.control}
-              name="bookingId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Related Booking</FormLabel>
-                  <Select 
-                    onValueChange={field.onChange} 
-                    defaultValue={field.value}
-                  >
+            <div className="grid grid-cols-1 gap-4">
+              <FormField
+                control={form.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Description</FormLabel>
                     <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a booking" />
-                      </SelectTrigger>
+                      <Textarea 
+                        placeholder="Detailed description of the expense..." 
+                        className={cn(
+                          "min-h-[100px] resize-y",
+                          form.formState.errors.description && formStyles.error
+                        )}
+                        {...field} 
+                      />
                     </FormControl>
-                    <SelectContent>
-                      {bookings.map((booking) => {
-                        const startDate = new Date(booking.startTime);
-                        const hallName = booking.hall?.name || "Unknown Hall";
-                        const customerName = booking.customer?.name || "Unknown Customer";
-                        
-                        return (
-                          <SelectItem key={booking._id} value={booking._id}>
-                            {format(startDate, "PPP")} - {hallName} ({customerName})
-                          </SelectItem>
-                        );
-                      })}
-                    </SelectContent>
-                  </Select>
-                  <FormDescription>
-                    Select the booking this expense is for
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="description"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Description</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Flower arrangements" {...field} />
-                  </FormControl>
-                  <FormDescription>
-                    Brief description of the expense
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                    <FormDescription>
+                      Detailed description of the expense
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
@@ -256,6 +229,9 @@ export default function ExpenseForm({ expenseId }) {
                       <Input
                         type="number"
                         placeholder="5000"
+                        className={cn(
+                          form.formState.errors.amount && formStyles.error
+                        )}
                         {...field}
                       />
                     </FormControl>
@@ -278,7 +254,9 @@ export default function ExpenseForm({ expenseId }) {
                       defaultValue={field.value}
                     >
                       <FormControl>
-                        <SelectTrigger>
+                        <SelectTrigger className={cn(
+                          form.formState.errors.category && formStyles.error
+                        )}>
                           <SelectValue placeholder="Select category" />
                         </SelectTrigger>
                       </FormControl>
@@ -312,7 +290,8 @@ export default function ExpenseForm({ expenseId }) {
                             variant={"outline"}
                             className={cn(
                               "w-full pl-3 text-left font-normal",
-                              !field.value && "text-muted-foreground"
+                              !field.value && "text-muted-foreground",
+                              form.formState.errors.date && formStyles.error
                             )}
                           >
                             {field.value ? (
@@ -348,10 +327,17 @@ export default function ExpenseForm({ expenseId }) {
                   <FormItem>
                     <FormLabel>Added By</FormLabel>
                     <FormControl>
-                      <Input placeholder="John Doe" {...field} />
+                      <Input 
+                        placeholder="John Doe" 
+                        className={cn(
+                          form.formState.errors.addedBy && formStyles.error
+                        )}
+                        disabled={true} // Make the field read-only
+                        {...field} 
+                      />
                     </FormControl>
                     <FormDescription>
-                      Person who added this expense
+                      Automatically set to the logged-in user
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
