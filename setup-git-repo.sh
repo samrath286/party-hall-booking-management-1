@@ -16,39 +16,26 @@ read -p "Enter your GitHub email: " github_email
 git config --local user.name "$github_username"
 git config --local user.email "$github_email"
 
-# Set up credential caching
+# GitHub authentication instructions
 echo ""
-echo "Do you want to set up credential caching to avoid entering your password repeatedly?"
-read -p "Set up credential caching? (y/n): " setup_caching
+echo "GitHub Authentication Information:"
+echo "--------------------------------"
+echo "Since you don't want to store credentials on your system, we'll disable credential helpers."
 
-if [ "$setup_caching" = "y" ] || [ "$setup_caching" = "Y" ]; then
-  echo ""
-  echo "Choose a credential caching option:"
-  echo "1) Cache credentials for 15 minutes (default)"
-  echo "2) Cache credentials for 1 hour"
-  echo "3) Cache credentials for 1 day"
-  echo "4) Cache credentials permanently (less secure)"
-  read -p "Enter option (1-4): " cache_option
-  
-  case $cache_option in
-    2)
-      git config --global credential.helper 'cache --timeout=3600'
-      echo "Credentials will be cached for 1 hour"
-      ;;
-    3)
-      git config --global credential.helper 'cache --timeout=86400'
-      echo "Credentials will be cached for 1 day"
-      ;;
-    4)
-      git config --global credential.helper store
-      echo "Credentials will be stored permanently (less secure)"
-      ;;
-    *)
-      git config --global credential.helper 'cache --timeout=900'
-      echo "Credentials will be cached for 15 minutes"
-      ;;
-  esac
-fi
+# Disable any credential helpers to ensure credentials aren't stored
+git config --local credential.helper ""
+
+echo "Credential storage has been disabled for this repository."
+echo "You will need to enter your GitHub username and token each time you push."
+echo ""
+echo "IMPORTANT: GitHub no longer accepts passwords for Git operations."
+echo "You must use a Personal Access Token (PAT) instead:"
+echo "1. Go to GitHub → Settings → Developer settings → Personal access tokens → Tokens (classic)"
+echo "2. Generate a new token with 'repo' scope"
+echo "3. Copy the token - you'll need it when pushing instead of your password"
+echo ""
+echo "Alternatively, you can use SSH authentication by choosing the SSH URL format later."
+echo ""
 
 echo ""
 echo "Local Git configuration set:"
