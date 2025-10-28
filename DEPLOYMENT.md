@@ -103,7 +103,9 @@ Once deployed, you can share the Vercel URL with others. They will be able to ac
 
 ### Fixing "npm install" Errors
 
-If you encounter the error "Command 'npm install' exited with 1" during deployment, it's likely due to incompatible package versions or peer dependency issues. Here are the steps to fix it:
+If you encounter the error "Command 'npm install' exited with 1" during deployment, it's likely due to incompatible package versions or peer dependency issues. Here are multiple approaches to fix it:
+
+#### Approach 1: Use Exact Versions and .npmrc
 
 1. Use exact versions in package.json instead of caret (^) versions:
    ```json
@@ -123,39 +125,109 @@ If you encounter the error "Command 'npm install' exited with 1" during deployme
    ```
    This will help resolve peer dependency conflicts during installation.
 
-3. Add a custom build script to ensure the correct npm install flags are used:
+#### Approach 2: Use a Custom Build Script with npm ci
+
+1. Create a build.sh script that uses npm ci with a backup package-lock.json:
    ```bash
-   # build.sh
    #!/bin/bash
-
-   # Exit on error
    set -e
-
-   # Print commands
    set -x
-
-   # Install dependencies with legacy peer deps
-   npm install --legacy-peer-deps
-
+   
+   # Clean npm cache
+   npm cache clean --force
+   
+   # Remove node_modules if it exists
+   if [ -d "node_modules" ]; then
+     rm -rf node_modules
+   fi
+   
+   # Remove package-lock.json if it exists
+   if [ -f "package-lock.json" ]; then
+     rm package-lock.json
+   fi
+   
+   # Copy our backup package-lock.json
+   if [ -f "package-lock.json.backup" ]; then
+     cp package-lock.json.backup package-lock.json
+   fi
+   
+   # Install dependencies with all flags to bypass issues
+   npm ci --legacy-peer-deps --no-fund --no-audit --no-optional
+   
    # Build the application
    npm run build
    ```
 
-4. Make the script executable:
+2. Make the script executable:
    ```bash
    chmod +x build.sh
    ```
 
-5. Update your vercel.json to use the custom build script:
+#### Approach 3: Create a Fallback Build Script
+
+1. Create a fallback-build.sh script that uses a minimal package.json:
+   ```bash
+   #!/bin/bash
+   set -e
+   set -x
+   
+   # Clean npm cache
+   npm cache clean --force
+   
+   # Remove node_modules if it exists
+   if [ -d "node_modules" ]; then
+     rm -rf node_modules
+   fi
+   
+   # Remove package-lock.json if it exists
+   if [ -f "package-lock.json" ]; then
+     rm package-lock.json
+   fi
+   
+   # Create a minimal package.json for deployment
+   cat > package.json << 'EOL'
+   {
+     "name": "party-hall-booking",
+     "version": "0.1.0",
+     "private": true,
+     "scripts": {
+       "dev": "next dev",
+       "build": "next build",
+       "start": "next start"
+     },
+     "dependencies": {
+       "next": "13.4.19",
+       "react": "18.2.0",
+       "react-dom": "18.2.0",
+       "mongoose": "7.5.0",
+       "next-auth": "4.22.1"
+     }
+   }
+   EOL
+   
+   # Install only essential dependencies
+   npm install --no-fund --no-audit
+   
+   # Build the application
+   npm run build
+   ```
+
+2. Make the script executable:
+   ```bash
+   chmod +x fallback-build.sh
+   ```
+
+3. Update your vercel.json to try both scripts:
    ```json
    {
      "version": 2,
-     "buildCommand": "./build.sh",
-     "framework": "nextjs"
+     "buildCommand": "chmod +x build.sh fallback-build.sh && ./build.sh || ./fallback-build.sh",
+     "framework": "nextjs",
+     "installCommand": "echo 'Using custom build script'"
    }
    ```
 
-6. After making these changes, commit and push your changes, then redeploy.
+4. After making these changes, commit and push your changes, then redeploy.
 
 ### Other Common Issues
 

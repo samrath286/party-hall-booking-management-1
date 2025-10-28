@@ -1,5 +1,6 @@
 {
   "version": 2,
-  "buildCommand": "./build.sh",
-  "framework": "nextjs"
+  "buildCommand": "chmod +x build.sh fallback-build.sh && ./build.sh || ./fallback-build.sh",
+  "framework": "nextjs",
+  "installCommand": "echo 'Using custom build script'"
 }
