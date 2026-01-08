@@ -1,5 +1,6 @@
 [build]
-  command = "npm run netlify-build || node netlify.js || bash netlify-simple-build.sh"
+  # command = "npm run netlify-build || node netlify.js || bash netlify-simple-build.sh"
+  command = "npm run build"
   publish = ".next"
 
 [build.environment]
